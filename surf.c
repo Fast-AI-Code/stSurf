@@ -132,6 +132,24 @@ typedef struct {
 } Button;
 
 typedef struct {
+	char *token;
+	char *uri;
+} SearchEngine;
+/* searchengines */
+static SearchEngine searchengines[] = {
+	{"g",   "http://www.google.com/search?q=%s"   },
+	{"d", "https://duckduckgo.com/?q=%s"},
+	{"a", "https://wiki.archlinux.org/index.php?q=%s"},
+	{"l", "https://libgen.is/search.php?req=%s"},
+	{"r", "https://reddit.com/r/%s"},
+	{"s", "https://scholar.google.com/scholar?q=%s"},
+	{"t", "https://twitter.com/%s"},
+	{"y", "https://youtube.com/results?search_query=%s"},
+};
+
+
+
+typedef struct {
 	const char *uri;
 	Parameter config[ParameterLast];
 	regex_t re;
@@ -186,6 +204,8 @@ static void initwebextensions(WebKitWebContext *wc, Client *c);
 static GtkWidget *createview(WebKitWebView *v, WebKitNavigationAction *a,
                              Client *c);
 static gboolean buttonreleased(GtkWidget *w, GdkEvent *e, Client *c);
+static gboolean scrollmultiply(GtkWidget *w, GdkEvent *e, Client *c);
+
 static GdkFilterReturn processx(GdkXEvent *xevent, GdkEvent *event,
                                 gpointer d);
 static gboolean winevent(GtkWidget *w, GdkEvent *e, Client *c);
@@ -218,6 +238,7 @@ static void webprocessterminated(WebKitWebView *v,
                                  Client *c);
 static void closeview(WebKitWebView *v, Client *c);
 static void destroywin(GtkWidget* w, Client *c);
+static gchar *parseuri(const gchar *uri);
 
 /* Hotkeys */
 static void pasteuri(GtkClipboard *clipboard, const char *text, gpointer d);
@@ -235,6 +256,7 @@ static void togglefullscreen(Client *c, const Arg *a);
 static void togglecookiepolicy(Client *c, const Arg *a);
 static void toggleinspector(Client *c, const Arg *a);
 static void find(Client *c, const Arg *a);
+static void playexternal(Client *c, const Arg *a);
 
 /* Buttons */
 static void clicknavigate(Client *c, const Arg *a, WebKitHitTestResult *h);
@@ -581,7 +603,8 @@ loaduri(Client *c, const Arg *a)
 			url = g_strdup_printf("file://%s", path);
 			free(path);
 		} else {
-			url = g_strdup_printf("http://%s", uri);
+			/* url = g_strdup_printf("http://%s", uri); */
+			url = parseuri(uri);
 		}
 		if (apath != uri)
 			free(apath);
@@ -1214,6 +1237,8 @@ newview(Client *c, WebKitWebView *rv)
 			 G_CALLBACK(titlechanged), c);
 	g_signal_connect(G_OBJECT(v), "button-release-event",
 			 G_CALLBACK(buttonreleased), c);
+	g_signal_connect(G_OBJECT(v), "scroll-event",
+			 G_CALLBACK(scrollmultiply), c);
 	g_signal_connect(G_OBJECT(v), "close",
 			G_CALLBACK(closeview), c);
 	g_signal_connect(G_OBJECT(v), "create",
@@ -1322,6 +1347,13 @@ buttonreleased(GtkWidget *w, GdkEvent *e, Client *c)
 		}
 	}
 
+	return FALSE;
+}
+
+gboolean
+scrollmultiply(GtkWidget *w, GdkEvent *e, Client *c)
+{
+	e->scroll.delta_y*=7;
 	return FALSE;
 }
 
@@ -1798,6 +1830,22 @@ destroywin(GtkWidget* w, Client *c)
 		gtk_main_quit();
 }
 
+gchar *
+parseuri(const gchar *uri) {
+	guint i;
+
+	for (i = 0; i < LENGTH(searchengines); i++) {
+		if (searchengines[i].token == NULL || searchengines[i].uri == NULL ||
+		    *(uri + strlen(searchengines[i].token)) != ' ')
+			continue;
+		if (g_str_has_prefix(uri, searchengines[i].token))
+			return g_strdup_printf(searchengines[i].uri,
+					       uri + strlen(searchengines[i].token) + 1);
+	}
+
+	return g_strdup_printf("http://%s", uri);
+}
+
 void
 pasteuri(GtkClipboard *clipboard, const char *text, gpointer d)
 {
@@ -2004,6 +2052,15 @@ clickexternplayer(Client *c, const Arg *a, WebKitHitTestResult *h)
 	Arg arg;
 
 	arg = (Arg)VIDEOPLAY(webkit_hit_test_result_get_media_uri(h));
+	spawn(c, &arg);
+}
+
+void
+playexternal(Client *c, const Arg *a)
+{
+	Arg arg;
+
+	arg = (Arg)VIDEOPLAY(geturi(c));
 	spawn(c, &arg);
 }
 
