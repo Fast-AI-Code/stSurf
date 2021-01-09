@@ -1,19 +1,10 @@
 --- surf.c
 +++ surf.c
-@@ -35,7 +35,7 @@
- #define LENGTH(x)               (sizeof(x) / sizeof(x[0]))
- #define CLEANMASK(mask)         (mask & (MODKEY|GDK_SHIFT_MASK))
- 
--enum { AtomFind, AtomGo, AtomUri, AtomLast };
-+enum { AtomFind, AtomSearch, AtomGo, AtomUri, AtomLast };
- 
- enum {
- 	OnDoc   = WEBKIT_HIT_TEST_RESULT_CONTEXT_DOCUMENT,
-@@ -231,6 +231,7 @@ static void togglefullscreen(Client *c, const Arg *a);
+@@ -217,6 +217,7 @@ static void togglefullscreen(Client *c, const Arg *a);
  static void togglecookiepolicy(Client *c, const Arg *a);
  static void toggleinspector(Client *c, const Arg *a);
  static void find(Client *c, const Arg *a);
-+static void search(Client *c, const Arg *a);
++static void externalpipe(Client *c, const Arg *a);
  
  /* Buttons */
  static void clicknavigate(Client *c, const Arg *a, WebKitHitTestResult *h);
